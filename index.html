@@ -1,0 +1,939 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Nekopara Pocket Surprise</title>
+  <style>
+    /* --- Font --- */
+    @font-face {
+      font-family: "Neko";
+      src: url("font/Neko.ttf") format("truetype");
+      font-display: swap;
+    }
+
+    :root{
+      --bgBlur: 2px;
+      --glass: rgba(8, 10, 14, .56);
+      --glass2: rgba(8, 10, 14, .40);
+      --stroke: rgba(255,255,255,.10);
+      --text: rgba(255,255,255,.92);
+      --muted: rgba(255,255,255,.68);
+      --shadow: 0 18px 60px rgba(0,0,0,.45);
+      --radius: 22px;
+      --accentA: 255, 167, 220; /* pink */
+      --accentB: 140, 210, 255; /* blue */
+      --good: rgba(120, 255, 197, .95);
+      --warn: rgba(255, 224, 140, .95);
+      --danger: rgba(255, 110, 145, .95);
+    }
+
+    *{ box-sizing:border-box; }
+    html, body{ height:100%; }
+    body{
+      margin:0;
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Arial, "Neko", sans-serif;
+      overflow-x:hidden;
+      background:#05060a;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* --- Background layers --- */
+    .bgWrap{
+      position:fixed;
+      inset:0;
+      z-index:-3;
+      overflow:hidden;
+    }
+    .bgLayer{
+      position:absolute;
+      inset:-20px;
+      background-size:cover;
+      background-position:center;
+      filter: blur(var(--bgBlur)) saturate(1.05);
+      transform: scale(1.06);
+      opacity:.92;
+      transition: opacity 700ms ease;
+    }
+    #bgA{ background-image: url("background/bg.gif"); }
+    #bgB{ background-image: url("background/bg2.gif"); opacity:0; }
+
+    .vignette{
+      position:absolute;
+      inset:0;
+      background:
+        radial-gradient(1200px 800px at 20% 10%, rgba(var(--accentA),.18), transparent 55%),
+        radial-gradient(900px 700px at 90% 20%, rgba(var(--accentB),.14), transparent 55%),
+        radial-gradient(800px 600px at 60% 90%, rgba(255,255,255,.08), transparent 60%),
+        linear-gradient(to bottom, rgba(0,0,0,.25), rgba(0,0,0,.58));
+      z-index:-2;
+      pointer-events:none;
+    }
+
+    canvas#sparkles{
+      position:fixed;
+      inset:0;
+      z-index:-1;
+      pointer-events:none;
+    }
+
+    /* --- Unlock overlay (for audio) --- */
+    .unlock{
+      position:fixed;
+      inset:0;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+      z-index:50;
+      background: rgba(0,0,0,.72);
+      backdrop-filter: blur(10px);
+    }
+    .unlockCard{
+      width:min(560px, 100%);
+      border: 1px solid var(--stroke);
+      border-radius: var(--radius);
+      background: rgba(20, 14, 20, .55);
+      box-shadow: var(--shadow);
+      padding:18px 16px;
+      text-align:center;
+    }
+    .unlockTitle{
+      font-family: "Neko", ui-sans-serif, system-ui;
+      font-size: 28px;
+      letter-spacing: .5px;
+      margin: 6px 0 8px;
+    }
+    .unlockText{ color: var(--muted); margin: 0 0 14px; line-height: 1.35; }
+    .unlockBtn{
+      border:0;
+      border-radius: 16px;
+      padding: 12px 14px;
+      cursor:pointer;
+      color: rgba(0,0,0,.92);
+      font-weight: 800;
+      width: 100%;
+      background: linear-gradient(135deg, rgba(var(--accentA),.95), rgba(var(--accentB),.95));
+      box-shadow: 0 12px 34px rgba(var(--accentA), .20);
+      transition: transform .12s ease;
+    }
+    .unlockBtn:active{ transform: scale(.98); }
+
+    /* --- Layout --- */
+    .wrap{
+      width:min(980px, 100%);
+      margin: 0 auto;
+      padding: 18px 14px 80px;
+    }
+
+    header{
+      margin-top: 10px;
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(20, 14, 20, .62), rgba(10, 12, 16, .45));
+      box-shadow: var(--shadow);
+      overflow:hidden;
+      position:relative;
+    }
+
+    .hero{
+      display:grid;
+      grid-template-columns: 92px 1fr;
+      gap: 14px;
+      padding: 14px;
+      align-items:center;
+    }
+
+    .avatar{
+      width: 92px;
+      height: 92px;
+      border-radius: 22px;
+      border: 1px solid rgba(255,255,255,.14);
+      background: url("img/avatar.jpg") center/cover no-repeat;
+      box-shadow: 0 12px 40px rgba(0,0,0,.35);
+      position:relative;
+      overflow:hidden;
+    }
+    .avatar::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background: radial-gradient(60px 60px at 30% 20%, rgba(255,255,255,.18), transparent 60%);
+      pointer-events:none;
+    }
+
+    .title{
+      font-family: "Neko", ui-sans-serif, system-ui;
+      font-size: 30px;
+      line-height:1.05;
+      margin:0;
+    }
+    .subtitle{
+      margin: 6px 0 0;
+      color: var(--muted);
+      line-height: 1.35;
+      font-size: 14px;
+    }
+
+    .pillRow{ display:flex; gap:10px; flex-wrap:wrap; margin-top:10px; }
+    .pill{
+      font-size: 12px;
+      color: rgba(255,255,255,.86);
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      border-radius: 999px;
+      padding: 7px 10px;
+      display:inline-flex;
+      align-items:center;
+      gap:8px;
+    }
+    .dot{ width:8px; height:8px; border-radius:50%; background: rgba(var(--accentA), .9); box-shadow: 0 0 18px rgba(var(--accentA), .45); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: 1.05fr .95fr;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    @media (max-width: 860px){
+      .grid{ grid-template-columns: 1fr; }
+      .hero{ grid-template-columns: 78px 1fr; }
+      .avatar{ width:78px; height:78px; border-radius: 20px; }
+      .title{ font-size: 28px; }
+    }
+
+    .card{
+      border-radius: var(--radius);
+      border: 1px solid var(--stroke);
+      background: linear-gradient(180deg, rgba(10,12,16,.52), rgba(10,12,16,.36));
+      box-shadow: var(--shadow);
+      padding: 14px;
+      position:relative;
+      overflow:hidden;
+    }
+    .card::before{
+      content:"";
+      position:absolute;
+      inset:-1px;
+      background: radial-gradient(400px 180px at 15% 0%, rgba(var(--accentA), .14), transparent 60%);
+      opacity:.9;
+      pointer-events:none;
+    }
+    .card h2{
+      margin: 0 0 8px;
+      font-size: 16px;
+      letter-spacing: .2px;
+    }
+    .card p{ margin: 0 0 10px; color: var(--muted); line-height: 1.45; }
+
+    .row{ display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+    .btn{
+      border: 1px solid rgba(255,255,255,.14);
+      background: rgba(0,0,0,.26);
+      color: rgba(255,255,255,.92);
+      border-radius: 16px;
+      padding: 10px 12px;
+      font-weight: 800;
+      cursor:pointer;
+      transition: transform .12s ease, background .12s ease;
+      user-select:none;
+    }
+    .btn:active{ transform: scale(.98); }
+    .btn.primary{
+      border: 0;
+      color: rgba(0,0,0,.92);
+      background: linear-gradient(135deg, rgba(var(--accentA), .95), rgba(var(--accentB), .95));
+      box-shadow: 0 12px 34px rgba(var(--accentA), .18);
+    }
+
+    .mini{
+      font-size: 12px;
+      color: rgba(255,255,255,.78);
+      padding: 8px 10px;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.20);
+    }
+
+    .slider{
+      width: 160px;
+      accent-color: rgba(var(--accentB), .95);
+    }
+
+    /* --- Gallery / Sticker --- */
+    .sticker{
+      width: 100%;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      overflow:hidden;
+      background: rgba(0,0,0,.22);
+      display:grid;
+      grid-template-columns: 1fr;
+      gap: 10px;
+      padding: 10px;
+    }
+    .stickerImg{
+      width: 100%;
+      border-radius: 14px;
+      border: 1px solid rgba(255,255,255,.12);
+      overflow:hidden;
+      position:relative;
+      background: rgba(0,0,0,.25);
+    }
+    .stickerImg img{ width: 100%; height: auto; display:block; }
+    .caption{
+      font-size: 12px;
+      color: rgba(255,255,255,.78);
+      text-align:center;
+      padding-bottom: 2px;
+    }
+
+    /* --- Chat bubbles --- */
+    .chat{
+      display:flex;
+      flex-direction:column;
+      gap: 8px;
+      margin-top: 8px;
+    }
+    .bubble{
+      max-width: 92%;
+      padding: 10px 12px;
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      line-height: 1.32;
+      font-size: 14px;
+      position:relative;
+    }
+    .bubble.me{
+      align-self:flex-end;
+      background: linear-gradient(135deg, rgba(var(--accentA), .22), rgba(var(--accentB), .16));
+      border-color: rgba(255,255,255,.14);
+    }
+    .bubble.you{ align-self:flex-start; }
+
+    /* --- Capsules --- */
+    .capsules{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 8px;
+    }
+    @media (max-width: 520px){
+      .capsules{ grid-template-columns: repeat(2, 1fr); }
+    }
+
+    .capsule{
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.22);
+      padding: 10px;
+      cursor:pointer;
+      transition: transform .12s ease;
+      user-select:none;
+      text-align:center;
+      font-weight: 800;
+    }
+    .capsule:active{ transform: scale(.98); }
+    .capsule small{ display:block; color: rgba(255,255,255,.68); font-weight: 600; margin-top: 4px; }
+
+    .reveal{
+      margin-top: 10px;
+      border-radius: 18px;
+      border: 1px dashed rgba(255,255,255,.18);
+      background: rgba(0,0,0,.20);
+      padding: 10px;
+      color: rgba(255,255,255,.86);
+      min-height: 46px;
+      display:flex;
+      align-items:center;
+    }
+
+    /* --- Pawprints (quest) --- */
+    .paw{
+      position: fixed;
+      z-index: 5;
+      width: 46px;
+      height: 46px;
+      border-radius: 999px;
+      display:grid;
+      place-items:center;
+      background: rgba(0,0,0,.28);
+      border: 1px solid rgba(255,255,255,.14);
+      box-shadow: 0 10px 30px rgba(0,0,0,.35);
+      cursor:pointer;
+      user-select:none;
+      transform: translate(-50%, -50%);
+      backdrop-filter: blur(8px);
+      animation: floaty 2.8s ease-in-out infinite;
+    }
+    .paw span{ font-size: 22px; filter: drop-shadow(0 8px 16px rgba(0,0,0,.35)); }
+    @keyframes floaty{ 0%,100%{ transform: translate(-50%, -50%) translateY(0); } 50%{ transform: translate(-50%, -50%) translateY(-8px);} }
+
+    /* --- Toast --- */
+    .toast{
+      position: fixed;
+      left: 50%;
+      bottom: 16px;
+      transform: translateX(-50%);
+      width: min(520px, calc(100% - 24px));
+      border-radius: 18px;
+      border: 1px solid rgba(255,255,255,.12);
+      background: rgba(10,12,16,.68);
+      backdrop-filter: blur(10px);
+      padding: 10px 12px;
+      box-shadow: var(--shadow);
+      z-index: 60;
+      opacity: 0;
+      pointer-events:none;
+      transition: opacity .25s ease, transform .25s ease;
+    }
+    .toast.show{ opacity: 1; transform: translateX(-50%) translateY(-4px); }
+    .toast b{ color: rgba(255,255,255,.92); }
+    .toast span{ color: rgba(255,255,255,.72); }
+
+    /* --- Little floating emojis created by JS --- */
+    .floatEmoji{
+      position: fixed;
+      z-index: 20;
+      pointer-events:none;
+      font-size: 22px;
+      transform: translate(-50%, -50%);
+      animation: popFloat 900ms ease forwards;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+    }
+    @keyframes popFloat{
+      0%{ opacity:0; transform: translate(-50%, -50%) scale(.85); }
+      15%{ opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+      100%{ opacity:0; transform: translate(-50%, -50%) translateY(-80px) scale(.92); }
+    }
+
+    footer{
+      margin-top: 12px;
+      text-align:center;
+      color: rgba(255,255,255,.62);
+      font-size: 12px;
+      padding: 10px 0;
+    }
+    footer strong{ color: rgba(255,255,255,.85); }
+
+    /* Reduce motion */
+    @media (prefers-reduced-motion: reduce){
+      .paw{ animation:none; }
+      canvas#sparkles{ display:none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="bgWrap" aria-hidden="true">
+    <div class="bgLayer" id="bgA"></div>
+    <div class="bgLayer" id="bgB"></div>
+    <div class="vignette"></div>
+  </div>
+
+  <canvas id="sparkles"></canvas>
+
+  <div class="unlock" id="unlock">
+    <div class="unlockCard">
+      <div class="unlockTitle">Tap to unlock the vibe</div>
+      <p class="unlockText">Mobile browsers block autoplay. Tap once and I’ll start the music + sparkles. 🪄</p>
+      <button class="unlockBtn" id="unlockBtn">OKAY LET’S GO 😤✨</button>
+      <p class="unlockText" style="margin-top:10px; font-size:12px;">(If you prefer silence, you can pause anytime.)</p>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <header>
+      <div class="hero">
+        <div class="avatar" title="Hi." aria-hidden="true"></div>
+        <div>
+          <h1 class="title">Nekopara Pocket Surprise</h1>
+          <p class="subtitle">
+            A tiny interactive page made to make you smile 😮‍💨🪆
+            <br />
+            It’s respectful. It’s cute. It’s chaos. It’s very… <b>us</b>.
+          </p>
+          <div class="pillRow">
+            <span class="pill"><span class="dot"></span> Tap anywhere to drop sparkles</span>
+            <span class="pill">🌿 Name a plant: <b>Chicorita</b></span>
+            <span class="pill">🥚 Mega egg sandwich approved</span>
+          </div>
+        </div>
+      </div>
+    </header>
+
+    <section class="grid">
+      <!-- Left column -->
+      <div class="card">
+        <h2>1) The Vibe Controls</h2>
+        <p>Because you deserve control over your own universe. Also because I’m the weirdest adult you’ve met. Probably.</p>
+
+        <div class="row" style="margin-bottom:10px; position:relative; z-index:2;">
+          <button class="btn primary" id="btnPlay">PLAY</button>
+          <button class="btn" id="btnPause">PAUSE</button>
+          <span class="mini">Volume</span>
+          <input class="slider" id="vol" type="range" min="0" max="100" value="55" />
+        </div>
+
+        <div class="row" style="margin-bottom:10px; position:relative; z-index:2;">
+          <button class="btn" id="btnBg">Switch Background</button>
+          <button class="btn" id="btnBurst">Drop A “Melt” Bomb</button>
+          <span class="mini">Mood</span>
+          <input class="slider" id="mood" type="range" min="0" max="100" value="55" />
+        </div>
+
+        <div class="chat" id="chat" style="position:relative; z-index:2;">
+          <div class="bubble you">HAAHAHAHA… no.</div>
+          <div class="bubble you">Gastritis, wait for me 😭</div>
+          <div class="bubble me">NO. You rest. Water. NOW. 😤</div>
+        </div>
+
+        <div class="row" style="margin-top:10px; position:relative; z-index:2;">
+          <button class="btn" id="btnNewLine">Generate a chaotic line</button>
+          <span class="mini">Smiles collected: <b id="smiles">0</b></span>
+        </div>
+      </div>
+
+      <!-- Right column -->
+      <div class="card">
+        <h2>2) Sticker Wall</h2>
+        <p>Pick a sticker. If it’s cute, it’s canon. If it’s cursed, it’s also canon.</p>
+
+        <div class="sticker" style="position:relative; z-index:2;">
+          <div class="stickerImg"><img id="stickerImg" src="img/you.gif" alt="Sticker" /></div>
+          <div class="caption" id="stickerCap">tap buttons below 😤</div>
+          <div class="row" style="justify-content:center;">
+            <button class="btn" data-sticker="you.gif" data-cap="YOU = chaos energy">You</button>
+            <button class="btn" data-sticker="us.gif" data-cap="Us (respectfully) 😮‍💨">Us</button>
+            <button class="btn" data-sticker="talknight.gif" data-cap="Night talks = chaos">Talknight</button>
+            <button class="btn" data-sticker="yourecute.gif" data-cap="You’re cute. I said it.">You’re cute</button>
+          </div>
+        </div>
+
+        <div style="margin-top:12px; position:relative; z-index:2;">
+          <h2 style="margin-top:0;">3) Tiny Quest: Find the Pawprints</h2>
+          <p>There are <b>3</b> hidden pawprints on the screen. Find them and you unlock a secret message.</p>
+          <div class="row">
+            <span class="mini">Paws found: <b id="pawsFound">0</b>/3</span>
+            <button class="btn" id="btnRehide">Hide them again</button>
+          </div>
+          <div class="reveal" id="questReveal">Secret message: locked 🔒</div>
+        </div>
+      </div>
+    </section>
+
+    <section class="grid" style="margin-top:12px;">
+      <div class="card">
+        <h2>4) Message Capsules</h2>
+        <p>Choose one capsule. It opens ONE cute thing. (If you open all, you become responsible for the consequences.)</p>
+
+        <div class="capsules" style="position:relative; z-index:2;">
+          <div class="capsule" data-msg="You have that energy that makes people look up. Even when it’s just plants on a table 🌿">🌿 Plant Lore<small>click</small></div>
+          <div class="capsule" data-msg="If your emotions feel dulled… I’m here. No pressure, no lectures. Just vibe + jokes 😮‍💨">😮‍💨 Soft Moment<small>click</small></div>
+          <div class="capsule" data-msg="I promise to be sweet… but not TOO sweet. Otherwise you’ll call me chushpan 😭">🪆 Chushpan Pact<small>click</small></div>
+          <div class="capsule" data-msg="Mega egg sandwich is valid science. Add cheese and you unlock +10 happiness 🥚">🥚 Egg Science<small>click</small></div>
+          <div class="capsule" data-msg="One day: I cook, you judge. If you hate it, we blame gastritis. Deal?">🍝 Future Cooking<small>click</small></div>
+          <div class="capsule" data-msg="My favorite part of talking to you is that it feels easy. Like… sparks without drama ✨">✨ The Vibe<small>click</small></div>
+        </div>
+        <div class="reveal" id="capsuleReveal">Pick one 😤</div>
+
+        <div class="row" style="margin-top:10px; position:relative; z-index:2;">
+          <button class="btn primary" id="btnCompliment">Give a respectful compliment</button>
+          <button class="btn" id="btnCatMode">Toggle Neko Mode</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>5) Mini “Pet” Button</h2>
+        <p>Press the button to send a virtual headpat. It’s silly. That’s the point.</p>
+
+        <div class="row" style="position:relative; z-index:2;">
+          <button class="btn primary" id="btnPat">HEADPAT 😤🐾</button>
+          <span class="mini">Headpats delivered: <b id="pats">0</b></span>
+        </div>
+
+        <div class="chat" id="patChat" style="margin-top:10px; position:relative; z-index:2;">
+          <div class="bubble you">Sweetcandychewinggumtoffeechocolate</div>
+          <div class="bubble me">That name is a trap 😭</div>
+        </div>
+
+        <div style="margin-top:12px; position:relative; z-index:2;">
+          <h2 style="margin-top:0;">6) One Honest Line</h2>
+          <p style="margin-bottom:8px;">Not “too much”. Just honest.</p>
+          <div class="reveal" id="honestLine">You’re a cool person, and being around you feels good. That’s it. That’s the line.</div>
+          <div class="row" style="margin-top:10px;">
+            <button class="btn" id="btnHonest">New honest line</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer>
+      Made with respectful chaos by <strong>Felipe</strong> 🪆✨<br />
+      Tip: tap anywhere to drop sparkles. Long press is allowed. Life is short.
+    </footer>
+  </div>
+
+  <div class="toast" id="toast"><b>hi</b> <span>toast</span></div>
+
+  <script>
+    // ====== tiny configuration (edit if you want) ======
+    const YOUR_NAME = "Felipe";
+    const HER_NICKNAME = "Kalashnikov Kawai Girl";
+
+    // ====== Audio ======
+    const audio = new Audio("music/catwork.mp3");
+    audio.loop = true;
+    audio.volume = 0.55;
+
+    const unlock = document.getElementById("unlock");
+    const unlockBtn = document.getElementById("unlockBtn");
+
+    function toast(title, msg){
+      const t = document.getElementById("toast");
+      t.querySelector("b").textContent = title;
+      t.querySelector("span").textContent = msg;
+      t.classList.add("show");
+      clearTimeout(toast._timer);
+      toast._timer = setTimeout(()=>t.classList.remove("show"), 1800);
+    }
+
+    async function tryPlay(){
+      try{
+        await audio.play();
+        toast("Vibe unlocked", "music is on 😤");
+      }catch(e){
+        // If blocked, user can press Play later
+        toast("Browser said no", "press PLAY 😭");
+      }
+    }
+
+    unlockBtn.addEventListener("click", async ()=>{
+      unlock.style.display = "none";
+      await tryPlay();
+    });
+
+    document.getElementById("btnPlay").addEventListener("click", tryPlay);
+    document.getElementById("btnPause").addEventListener("click", ()=>{ audio.pause(); toast("Paused", "silence mode 😮‍💨"); });
+    document.getElementById("vol").addEventListener("input", (e)=>{ audio.volume = Math.max(0, Math.min(1, e.target.value/100)); });
+
+    // ====== Background toggle ======
+    let bgOnA = true;
+    const bgB = document.getElementById("bgB");
+    document.getElementById("btnBg").addEventListener("click", ()=>{
+      bgOnA = !bgOnA;
+      bgB.style.opacity = bgOnA ? 0 : 1;
+      toast("Background", bgOnA ? "bg #1" : "bg #2");
+      burstEmojis(10);
+      incSmiles(2);
+    });
+
+    // ====== Mood slider ======
+    const mood = document.getElementById("mood");
+    mood.addEventListener("input", ()=>{
+      const v = Number(mood.value);
+      // Map 0..100 to blur 0..4
+      const blur = (v/100) * 4;
+      document.documentElement.style.setProperty("--bgBlur", blur.toFixed(1) + "px");
+    });
+
+    // ====== Stickers ======
+    const stickerImg = document.getElementById("stickerImg");
+    const stickerCap = document.getElementById("stickerCap");
+    document.querySelectorAll("[data-sticker]").forEach(btn=>{
+      btn.addEventListener("click", ()=>{
+        const file = btn.getAttribute("data-sticker");
+        const cap = btn.getAttribute("data-cap");
+        stickerImg.src = "img/" + file;
+        stickerCap.textContent = cap;
+        burstAtCenter();
+        incSmiles(1);
+      });
+    });
+
+    // ====== Chat generator ======
+    const chat = document.getElementById("chat");
+    const lines = [
+      "SHAUSHAUSHA I’m literally trying to behave 😭",
+      "If scientists are insane, then… welcome to the club 😮‍💨",
+      "Do you name your plants? Because I’m naming them anyway 🌿",
+      "Mega egg sandwich: approved by the International Cat Council 🐾",
+      "You scare me a little. Respectfully.",
+      "OKAY OKAY I’ll stop being too sweet… maybe.",
+      "You have that cool energy. Like, seriously.",
+      "If you feel tired, rest. I’ll be here. No pressure.",
+      "You’re pinned in my brain. Not as an emoji reaction 😤",
+      "Old man moment: drink water. NOW.",
+    ];
+
+    function addBubble(text, who){
+      const div = document.createElement("div");
+      div.className = "bubble " + who;
+      div.textContent = text;
+      chat.appendChild(div);
+      // keep it short
+      while(chat.children.length > 6){ chat.removeChild(chat.firstElementChild); }
+    }
+
+    document.getElementById("btnNewLine").addEventListener("click", ()=>{
+      const pick = lines[Math.floor(Math.random()*lines.length)];
+      addBubble(pick, "me");
+      burstEmojis(6);
+      incSmiles(1);
+    });
+
+    // ====== Capsules ======
+    const capsuleReveal = document.getElementById("capsuleReveal");
+    document.querySelectorAll(".capsule").forEach(c=>{
+      c.addEventListener("click", ()=>{
+        capsuleReveal.textContent = c.getAttribute("data-msg");
+        burstEmojis(9);
+        incSmiles(2);
+      });
+    });
+
+    // ====== Respectful compliments ======
+    const compliments = [
+      "You’re cool. Like… actually cool. Not ‘too much’, just true.",
+      "Talking with you feels easy. That’s rare.",
+      "Your energy is the kind that makes a room feel less heavy.",
+      "You make simple things feel fun. Even plants on a table.",
+      "You’re a pleasant person to be around. That’s a real compliment.",
+      "If you’re tired, you don’t need to perform. Just exist. It’s enough.",
+    ];
+
+    document.getElementById("btnCompliment").addEventListener("click", ()=>{
+      const pick = compliments[Math.floor(Math.random()*compliments.length)];
+      capsuleReveal.textContent = pick;
+      toast("Compliment", "delivered 😤");
+      burstEmojis(12);
+      incSmiles(3);
+    });
+
+    // ====== Honest lines ======
+    const honestLine = document.getElementById("honestLine");
+    const honestLines = [
+      "You’re a cool person, and being around you feels good. That’s it. That’s the line.",
+      "I like your presence. It’s calm and chaotic at the same time.",
+      "If life feels heavy, you don’t have to carry it alone.",
+      "You don’t need perfect words. I still understand you.",
+      "You’re the kind of person that makes small moments feel special.",
+    ];
+    document.getElementById("btnHonest").addEventListener("click", ()=>{
+      honestLine.textContent = honestLines[Math.floor(Math.random()*honestLines.length)];
+      burstEmojis(10);
+      incSmiles(2);
+    });
+
+    // ====== Neko mode ======
+    let nekoMode = false;
+    document.getElementById("btnCatMode").addEventListener("click", ()=>{
+      nekoMode = !nekoMode;
+      if(nekoMode){
+        document.documentElement.style.setProperty("--accentA", "255, 210, 120");
+        document.documentElement.style.setProperty("--accentB", "255, 150, 200");
+        toast("Neko mode", "ON 🐾");
+      }else{
+        document.documentElement.style.setProperty("--accentA", "255, 167, 220");
+        document.documentElement.style.setProperty("--accentB", "140, 210, 255");
+        toast("Neko mode", "OFF 😮‍💨");
+      }
+      burstEmojis(12);
+      incSmiles(2);
+    });
+
+    // ====== Headpat button ======
+    let pats = 0;
+    const patsEl = document.getElementById("pats");
+    const patChat = document.getElementById("patChat");
+    const patLines = [
+      "*headpat delivered* 😤🐾",
+      "You’re doing great. Even if today is annoying.",
+      "Drink water and don’t fight your stomach 😭",
+      "Mega egg sandwich is a valid coping mechanism.",
+      "If you’re stressed, I can be your tiny safe corner.",
+      "OKAY OKAY I’ll be less sweet… maybe.",
+    ];
+
+    document.getElementById("btnPat").addEventListener("click", ()=>{
+      pats++;
+      patsEl.textContent = String(pats);
+      const msg = patLines[Math.floor(Math.random()*patLines.length)];
+      const div = document.createElement("div");
+      div.className = "bubble me";
+      div.textContent = msg;
+      patChat.appendChild(div);
+      while(patChat.children.length > 6){ patChat.removeChild(patChat.firstElementChild); }
+      burstEmojis(8);
+      incSmiles(2);
+    });
+
+    // ====== Smiles counter ======
+    let smiles = 0;
+    const smilesEl = document.getElementById("smiles");
+    function incSmiles(n){
+      smiles += n;
+      smilesEl.textContent = String(smiles);
+    }
+
+    // ====== Emoji burst ======
+    const EMOJIS = ["✨","💗","🐾","🪆","🌿","😮‍💨","🥚","😤","🍬","🌙"];
+
+    function floatEmoji(x, y){
+      const s = document.createElement("div");
+      s.className = "floatEmoji";
+      s.style.left = x + "px";
+      s.style.top = y + "px";
+      s.textContent = EMOJIS[Math.floor(Math.random()*EMOJIS.length)];
+      document.body.appendChild(s);
+      setTimeout(()=>s.remove(), 950);
+    }
+
+    function burstEmojis(count){
+      const x = window.innerWidth * (0.35 + Math.random()*0.3);
+      const y = window.innerHeight * (0.35 + Math.random()*0.3);
+      for(let i=0;i<count;i++){
+        setTimeout(()=>floatEmoji(x + (Math.random()*120-60), y + (Math.random()*80-40)), i*18);
+      }
+    }
+
+    function burstAtCenter(){
+      const x = window.innerWidth/2;
+      const y = window.innerHeight/2;
+      for(let i=0;i<14;i++){
+        setTimeout(()=>floatEmoji(x + (Math.random()*160-80), y + (Math.random()*120-60)), i*14);
+      }
+    }
+
+    document.getElementById("btnBurst").addEventListener("click", ()=>{
+      burstAtCenter();
+      toast("Melt bomb", "impact confirmed 😭");
+      incSmiles(5);
+    });
+
+    // Tap anywhere to drop sparkles/emojis (and unlock audio if overlay is closed)
+    window.addEventListener("pointerdown", (e)=>{
+      if(unlock.style.display !== "none") return;
+      floatEmoji(e.clientX, e.clientY);
+      spawnSpark(e.clientX, e.clientY);
+    }, {passive:true});
+
+    // ====== Paw quest ======
+    const questReveal = document.getElementById("questReveal");
+    const pawsFoundEl = document.getElementById("pawsFound");
+    let found = 0;
+    let pawEls = [];
+
+    function rand(min, max){ return Math.random()*(max-min)+min; }
+
+    function placePaws(){
+      // Remove existing
+      pawEls.forEach(p=>p.remove());
+      pawEls = [];
+      found = 0;
+      pawsFoundEl.textContent = "0";
+      questReveal.textContent = "Secret message: locked 🔒";
+
+      for(let i=0;i<3;i++){
+        const paw = document.createElement("div");
+        paw.className = "paw";
+        paw.innerHTML = "<span>🐾</span>";
+
+        const pad = 60;
+        const x = rand(pad, window.innerWidth - pad);
+        const y = rand(pad + 80, window.innerHeight - pad);
+        paw.style.left = x + "px";
+        paw.style.top = y + "px";
+        paw.style.animationDelay = (Math.random()*0.8) + "s";
+
+        paw.addEventListener("click", ()=>{
+          paw.remove();
+          found++;
+          pawsFoundEl.textContent = String(found);
+          burstEmojis(10);
+          incSmiles(3);
+          toast("Paw found!", found + "/3");
+
+          if(found >= 3){
+            questReveal.innerHTML = "Secret message: <b>You give me sparks</b> ✨ (but I’ll say it calmly, so you don’t call me chushpan 😭)";
+            stickerImg.src = "img/yourecute.gif";
+            stickerCap.textContent = "Unlocked: You’re cute 😤";
+            burstAtCenter();
+            incSmiles(8);
+          }
+        });
+
+        document.body.appendChild(paw);
+        pawEls.push(paw);
+      }
+    }
+
+    document.getElementById("btnRehide").addEventListener("click", ()=>{
+      placePaws();
+      toast("Quest", "paws re-hidden 😤");
+    });
+
+    // ====== Sparkle canvas ======
+    const canvas = document.getElementById("sparkles");
+    const ctx = canvas.getContext("2d");
+    let W = 0, H = 0;
+
+    function resize(){
+      W = canvas.width = Math.floor(window.innerWidth * devicePixelRatio);
+      H = canvas.height = Math.floor(window.innerHeight * devicePixelRatio);
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+      ctx.setTransform(devicePixelRatio,0,0,devicePixelRatio,0,0);
+    }
+
+    const particles = [];
+    function spawnSpark(x, y){
+      for(let i=0;i<5;i++){
+        particles.push({
+          x, y,
+          vx: (Math.random()*2-1) * 1.8,
+          vy: (Math.random()*2-1) * 1.8,
+          life: 1,
+          size: 1.2 + Math.random()*2.2,
+        });
+      }
+    }
+
+    function tick(){
+      ctx.clearRect(0,0,window.innerWidth, window.innerHeight);
+      for(let i=particles.length-1;i>=0;i--){
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vx *= 0.96;
+        p.vy *= 0.96;
+        p.life -= 0.03;
+        if(p.life <= 0){ particles.splice(i,1); continue; }
+
+        const a = Math.max(0, Math.min(1, p.life));
+        ctx.globalAlpha = a;
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, p.size, 0, Math.PI*2);
+        ctx.fillStyle = `rgba(255,255,255,${0.7*a})`;
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(tick);
+    }
+
+    window.addEventListener("resize", ()=>{ resize(); placePaws(); });
+
+    // initial
+    resize();
+    placePaws();
+    tick();
+
+    // Fun: update some visible text with names
+    // (kept subtle, to stay respectful)
+    setTimeout(()=>{
+      toast("Hi " + HER_NICKNAME, "from " + YOUR_NAME + " 😮‍💨");
+    }, 900);
+  </script>
+</body>
+</html>
